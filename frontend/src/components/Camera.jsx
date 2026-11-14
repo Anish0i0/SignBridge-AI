@@ -83,7 +83,7 @@ function Camera({ onPrediction = () => {}, onPredictingChange = () => {} }) {
         console.error("Prediction request failed:", err);
         onPrediction({
           success: false,
-          message: "Backend unavailable. Make sure FastAPI is running.",
+          message: "Recognition server unavailable.",
         });
       } finally {
         setIsPredicting(false);
@@ -103,50 +103,95 @@ function Camera({ onPrediction = () => {}, onPredictingChange = () => {} }) {
     }
     return () => clearInterval(intervalRef.current);
   }, [isCameraOn]);
+
+  // Report loading state up to App
   useEffect(() => {
     onPredictingChange(isPredicting);
   }, [isPredicting]);
 
-  const getStatusText = () => {
-    if (cameraError) return "Camera Permission Required";
-    if (isCameraOn) return "● Camera Active";
-    return "Camera Off";
-  };
-
-  const getStatusClass = () => {
-    if (cameraError) return "camera-status status-error";
-    if (isCameraOn) return "camera-status status-active";
-    return "camera-status status-off";
-  };
+  // ---- Presentation only below this line ----
+  let status = { label: "Camera Off", tone: "neutral" };
+  if (cameraError) {
+    status = { label: "Camera Permission Required", tone: "error" };
+  } else if (isCameraOn) {
+    status = { label: "Camera Active", tone: "success" };
+  }
 
   return (
-    <div className="camera-section">
-      <h2>Camera</h2>
-      <p className={getStatusClass()}>{getStatusText()}</p>
+    <section className="card camera-card" aria-labelledby="camera-title">
+      <div className="card-header">
+        <h2 id="camera-title" className="card-title">
+          Camera
+        </h2>
+        <span className={`status-pill tone-${status.tone}`}>
+          <span className="status-dot" aria-hidden="true" />
+          {status.label}
+        </span>
+      </div>
 
-      <div className="camera-placeholder">
+      <div className="camera-frame">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
           className="camera-video"
+          aria-label="Live webcam preview"
           style={{ display: isCameraOn ? "block" : "none" }}
         />
-        {!isCameraOn && <p>Camera feed will appear here</p>}
+
+        {!isCameraOn && (
+          <div className="camera-placeholder">
+            <svg
+              viewBox="0 0 24 24"
+              width="40"
+              height="40"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M23 7l-7 5 7 5V7z" />
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+            </svg>
+            <p className="placeholder-title">Camera is off</p>
+            <p className="placeholder-text">
+              Start the camera, then show a gesture to begin recognition.
+            </p>
+          </div>
+        )}
       </div>
 
+      {/* Hidden canvas used only for capturing frames - never shown to the user */}
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {cameraError && <p className="camera-error">{cameraError}</p>}
+      {cameraError && (
+        <p className="alert alert-error" role="alert">
+          {cameraError}
+        </p>
+      )}
 
-      <button
-        className="start-btn"
-        onClick={isCameraOn ? stopCamera : startCamera}
-      >
-        {isCameraOn ? "Stop Camera" : "Start Camera"}
-      </button>
-    </div>
+      <div className="button-row">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={startCamera}
+          disabled={isCameraOn}
+        >
+          Start Camera
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={stopCamera}
+          disabled={!isCameraOn}
+        >
+          Stop Camera
+        </button>
+      </div>
+    </section>
   );
 }
 
